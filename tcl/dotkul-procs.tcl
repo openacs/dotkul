@@ -137,18 +137,18 @@ ad_proc -public ad_page_element_contract {
 
 
 #----------------------------------------------------------------------
-# Entity types (object types, content types, tables)
+# Object-Type types (object types, content types, tables)
 #----------------------------------------------------------------------
 
-# nsv_set acs_metadata /entities/ { post }
-# nsv_set acs_metadata /entities/post.storage "content_item"
-# nsv_set acs_metadata /entities/post.content_type "post"
-# nsv_set acs_metadata /entities/post.pretty_name "Post"
-# nsv_set acs_metadata /entities/post/ { extended_message }
-# nsv_set acs_metadata /entities/post/extended_message.pretty_name "Extended Message"
+# nsv_set acs_metadata /object-types/ { post }
+# nsv_set acs_metadata /object-types/post.storage "content_item"
+# nsv_set acs_metadata /object-types/post.content_type "post"
+# nsv_set acs_metadata /object-types/post.pretty_name "Post"
+# nsv_set acs_metadata /object-types/post/ { extended_message }
+# nsv_set acs_metadata /object-types/post/extended_message.pretty_name "Extended Message"
 
-ad_proc dotkul::build_entity_metadata {} {
-    Build nsv data structure for entities
+ad_proc dotkul::build_object_type_metadata {} {
+    Build nsv data structure for object-types
 } {
     db_foreach object_types {
         select object_type, supertype, pretty_name, pretty_plural, table_name, id_column, 
@@ -157,41 +157,50 @@ ad_proc dotkul::build_entity_metadata {} {
         order  by tree_sortkey
     } {
 
-        dotkul::set_metadata /entities/$object_type.type entity
-        dotkul::set_metadata /entities/$object_type.storage "acs_object"
+        dotkul::set_metadata /object-types/$object_type.type object_type
+        dotkul::set_metadata /object-types/$object_type.storage "acs_object"
 
         foreach col { 
             object_type supertype pretty_name pretty_plural table_name id_column
             package_name name_method type_extension_table
         } {
-            dotkul::set_metadata /entities/$object_type.$col [set $col]
+            dotkul::set_metadata /object-types/$object_type.$col [set $col]
         }
-        dotkul::set_metadata /entities/$object_type.all_attributes [list]
+        dotkul::set_metadata /object-types/$object_type.all_attributes [list]
+
+        # Clear out stuff which would otherwise hurt us of this proc is run multiple times
+        foreach property { all_attributes query_where query_from query_select } {
+            nsv_set acs_metadata /object-types/$object_type.$property {}
+        }
     }
 
     #----------------------------------------------------------------------
     # Generate the type hierarchy
     #----------------------------------------------------------------------
     
-    foreach entity [dotkul::get_metadata /entities/] {
+    foreach object_type [dotkul::get_metadata /object-types/] {
 
-        set supertypes $entity
+        set supertypes $object_type
         
-        set last_supertype $entity
-        set supertype [dotkul::get_metadata /entities/$entity.supertype]
+        set last_supertype $object_type
+        set supertype [dotkul::get_metadata /object-types/$object_type.supertype]
         while { ![string equal $supertype $last_supertype] && ![empty_string_p $supertype] } {
             set supertypes [concat $supertype $supertypes]
             set last_supertype $supertype
-            set supertype [dotkul::get_metadata /entities/$supertype.supertype]
+            set supertype [dotkul::get_metadata /object-types/$supertype.supertype]
         }
 
-        dotkul::set_metadata /entities/$entity.supertype_list $supertypes
+        dotkul::set_metadata /object-types/$object_type.supertype_list $supertypes
 
         if { [lsearch -exact $supertypes "content_revision"] != -1 } {
-            dotkul::set_metadata /entities/$entity.storage "content_item"
-            dotkul::set_metadata /entities/$entity.full_view "[dotkul::get_metadata /entities/$entity.table_name]x"
+            dotkul::set_metadata /object-types/$object_type.storage "content_item"
+            dotkul::set_metadata /object-types/$object_type.full_view "[dotkul::get_metadata /object-types/$object_type.table_name]x"
         }
     }
+
+    #----------------------------------------------------------------------
+    # Add attributes
+    #----------------------------------------------------------------------
 
     # Mapping from acs_attributes datatype to formbuilder datatypes
     array set form_datatype {
@@ -255,50 +264,83 @@ ad_proc dotkul::build_entity_metadata {} {
         and    static_p = 'f'
         order  by object_type, sort_order
     } {
-        dotkul::set_metadata /entities/$object_type/$attribute_name.type attribute
+        dotkul::set_metadata /object-types/$object_type/$attribute_name.type attribute
         foreach col {
             table_name attribute_name pretty_name pretty_plural datatype 
             default_value min_n_values storage static_p column_name
         } {
-            dotkul::set_metadata /entities/$object_type/$attribute_name.$col [set $col]
+            dotkul::set_metadata /object-types/$object_type/$attribute_name.$col [set $col]
+        }
+
+        if { [empty_string_p $table_name] } {
+            dotkul::set_metadata /object-types/$object_type/$attribute_name.table_name [dotkul::get_metadata /object-types/$object_type.table_name]
+        }
+        if { [empty_string_p $column_name] } {
+            dotkul::set_metadata /object-types/$object_type/$attribute_name.column_name $attribute_name
         }
 
         # Special form-builder presentation options
-        dotkul::set_metadata /entities/$object_type/$attribute_name.form_datatype $form_datatype($datatype)
-        dotkul::set_metadata /entities/$object_type/$attribute_name.form_widget $form_widget($datatype)
-        dotkul::set_metadata /entities/$object_type/$attribute_name.form_options $form_options($datatype)
+        dotkul::set_metadata /object-types/$object_type/$attribute_name.form_datatype $form_datatype($datatype)
+        dotkul::set_metadata /object-types/$object_type/$attribute_name.form_widget $form_widget($datatype)
+        dotkul::set_metadata /object-types/$object_type/$attribute_name.form_options $form_options($datatype)
     }
 
+    #----------------------------------------------------------------------
+    # Add inherited attributes, plus query to get the full object
+    #----------------------------------------------------------------------
+
     # Add parent attributes to child types
-    foreach entity [dotkul::get_metadata /entities/] {
-        foreach supertype [dotkul::get_metadata /entities/$entity.supertype_list] {
-            foreach attribute [dotkul::get_metadata /entities/$supertype/] {
-                nsv_lappend acs_metadata /entities/$entity.all_attributes /entities/$supertype/$attribute
+    foreach object_type [dotkul::get_metadata /object-types/] {
+        set last_supertype {}
+        foreach supertype [dotkul::get_metadata /object-types/$object_type.supertype_list] {
+            if { ![empty_string_p $last_supertype] } {
+                set where "[dotkul::get_metadata /object-types/$last_supertype.table_name].[dotkul::get_metadata /object-types/$last_supertype.id_column] = [dotkul::get_metadata /object-types/$supertype.table_name].[dotkul::get_metadata /object-types/$supertype.id_column]"
+                nsv_lappend acs_metadata /object-types/$object_type.query_where $where
+            }
+            set last_supertype $supertype
+            foreach attribute [dotkul::get_metadata /object-types/$supertype/] {
+                nsv_lappend acs_metadata /object-types/$object_type.all_attributes /object-types/$supertype/$attribute
+
+                set table_name [dotkul::get_metadata /object-types/$supertype/$attribute.table_name]
+                if { [lsearch [dotkul::get_metadata /object-types/$object_type.query_from] $table_name] == -1 } {
+                    nsv_lappend acs_metadata /object-types/$object_type.query_from $table_name
+                }
+                nsv_lappend acs_metadata /object-types/$object_type.query_select $table_name.$attribute
             }
         }
     }
-
-
 }
 
 # HACK
-dotkul::build_entity_metadata
+dotkul::build_object_type_metadata
 
 #----------------------------------------------------------------------
 # Override stuff - prototyping
 #----------------------------------------------------------------------
 
-dotkul::set_metadata /entities/acs_object/object_type.form_mode none
-dotkul::set_metadata /entities/acs_object/creation_date.form_mode none
-dotkul::set_metadata /entities/acs_object/creation_ip.form_mode none
-dotkul::set_metadata /entities/acs_object/creation_user.form_mode none
-dotkul::set_metadata /entities/acs_object/last_modified.form_mode none
-dotkul::set_metadata /entities/acs_object/modifying_ip.form_mode none
-dotkul::set_metadata /entities/acs_object/creation_ip.form_mode none
-dotkul::set_metadata /entities/acs_object/context_id.form_mode none
+dotkul::set_metadata /object-types/acs_object/object_type.form_mode none
+dotkul::set_metadata /object-types/acs_object/creation_date.form_mode none
+dotkul::set_metadata /object-types/acs_object/creation_ip.form_mode none
+dotkul::set_metadata /object-types/acs_object/creation_user.form_mode none
+dotkul::set_metadata /object-types/acs_object/last_modified.form_mode none
+dotkul::set_metadata /object-types/acs_object/modifying_ip.form_mode none
+dotkul::set_metadata /object-types/acs_object/creation_ip.form_mode none
+dotkul::set_metadata /object-types/acs_object/context_id.form_mode none
 
-dotkul::set_metadata /entities/content_revision/title.datatype string
-dotkul::set_metadata /entities/content_revision/title.form_widget text
+
+dotkul::set_metadata /object-types/content_revision/title.datatype string
+dotkul::set_metadata /object-types/content_revision/title.form_widget text
+
+dotkul::set_metadata /object-types/pinds_blog_entry.query_orderby "entry_date desc"
+
+
+
+#----------------------------------------------------------------------
+# Foreign keys
+#----------------------------------------------------------------------
+
+dotkul::set_metadata /object-types/acs_object/creation_user.references user
+
 
 
 #----------------------------------------------------------------------
@@ -326,12 +368,12 @@ dotkul::set_metadata /entities/content_revision/title.form_widget text
 ad_proc dotkul::build_form_metadata {} {
     Build nsv data structure for forms
 } {
-    foreach entity [dotkul::get_metadata /entities/] {
+    foreach entity [dotkul::get_metadata /object-types/] {
         dotkul::set_metadata /formspecs/$entity.type formspec
 
-        switch [dotkul::get_metadata /entities/$entity.storage] {
+        switch [dotkul::get_metadata /object-types/$entity.storage] {
             acs_object {
-                dotkul::set_metadata /formspecs/$entity.key [dotkul::get_metadata /entities/$entity.id_column]
+                dotkul::set_metadata /formspecs/$entity.key [dotkul::get_metadata /object-types/$entity.id_column]
             }
             content_item {
                 dotkul::set_metadata /formspecs/$entity.key item_id
@@ -339,8 +381,8 @@ ad_proc dotkul::build_form_metadata {} {
         }
         dotkul::set_metadata /formspecs/$entity.entity $entity
         
-        foreach supertype [dotkul::get_metadata /entities/$entity.supertype_list] {
-            foreach attribute [dotkul::get_metadata /entities/$supertype/] {
+        foreach supertype [dotkul::get_metadata /object-types/$entity.supertype_list] {
+            foreach attribute [dotkul::get_metadata /object-types/$supertype/] {
 
                 dotkul::set_metadata /formspecs/$entity/${attribute}.type formspec-element
 
@@ -348,15 +390,15 @@ ad_proc dotkul::build_form_metadata {} {
                 dotkul::set_metadata /formspecs/$entity/${attribute}.attribute $attribute
 
                 dotkul::set_metadata /formspecs/$entity/${attribute}.label \
-                    [dotkul::get_metadata /entities/$supertype/$attribute.pretty_name]
+                    [dotkul::get_metadata /object-types/$supertype/$attribute.pretty_name]
                 dotkul::set_metadata /formspecs/$entity/${attribute}.widget \
-                    [dotkul::get_metadata /entities/$supertype/$attribute.form_widget]
+                    [dotkul::get_metadata /object-types/$supertype/$attribute.form_widget]
                 dotkul::set_metadata /formspecs/$entity/${attribute}.datatype \
-                    [dotkul::get_metadata /entities/$supertype/$attribute.form_datatype]
+                    [dotkul::get_metadata /object-types/$supertype/$attribute.form_datatype]
                 dotkul::set_metadata /formspecs/$entity/${attribute}.options \
-                    [dotkul::get_metadata /entities/$supertype/$attribute.form_options]
+                    [dotkul::get_metadata /object-types/$supertype/$attribute.form_options]
                 dotkul::set_metadata /formspecs/$entity/${attribute}.form_mode \
-                    [dotkul::get_metadata /entities/$supertype/$attribute.form_mode]
+                    [dotkul::get_metadata /object-types/$supertype/$attribute.form_mode]
             }
         }
     }
@@ -392,71 +434,14 @@ dotkul::build_form_metadata
 
 
 
-#----------------------------------------------------------------------
-# content_item storage procs
-#----------------------------------------------------------------------
-
-ad_proc -public dotkul::storage::content_item::new {
-    -key:required
-    -parent_id:required
-    -entity:required
-    -array:required
-} {
-    upvar 1 $array values
-
-    if { ![exists_and_not_null values(name)] } {
-        if { ![exists_and_not_null values(title)] } {
-            error "You must supply a title"
-        }
-        
-        set values(name) [util_text_to_url -text $values(title)]
-    }
-    if { ![exists_and_not_null values(mime_type)] } {
-        set values(mime_type) "text/plain"
-    }
-    if { ![exists_and_not_null values(content_text)] } {
-        set values(content_text) {}
-    }
-    if { ![exists_and_not_null values(description)] } {
-        set values(description) {}
-    }
-
-    db_transaction {
-        set item_id [bcms::item::create_item \
-                         -item_id $key \
-                         -item_name $values(name) \
-                         -parent_id $parent_id \
-                         -content_type $entity \
-                         -storage_type "text"]
-        
-        # HACK!!!!! Remember to put in attributes here!!!
-        set attributes {}
-
-        set revision_id [bcms::revision::add_revision \
-                             -item_id $item_id \
-                             -title $values(title) \
-                             -content_type $entity \
-                             -mime_type $values(mime_type) \
-                             -content $values(content_text) \
-                             -description $values(description) \
-                             -additional_properties $attributes]
-
-        
-        bcms::revision::set_revision_status \
-            -revision_id $revision_id \
-            -status "live"
-    }
-
-    return $item_id
-}
 
 #----------------------------------------------------------------------
 # Node and property types
 #----------------------------------------------------------------------
 
-dotkul::set_metadata /system/metadata/node-types/entity.type metadata_node
-dotkul::set_metadata /system/metadata/node-types/entity/all_attributes.type metadata_property
-dotkul::set_metadata /system/metadata/node-types/entity/all_attributes.property_type metadata_reference_list
+dotkul::set_metadata /system/metadata/node-types/object_type.type metadata_node
+dotkul::set_metadata /system/metadata/node-types/object_type/all_attributes.type metadata_property
+dotkul::set_metadata /system/metadata/node-types/object_type/all_attributes.property_type metadata_reference_list
 
 dotkul::set_metadata /system/metadata/node-types/page-element-instance.type metadata_node
 dotkul::set_metadata /system/metadata/node-types/page-element-instance/page-element.type metadata_property
@@ -476,7 +461,7 @@ dotkul::set_metadata /page-elements/generic-table.type page-element
 dotkul::set_metadata /page-elements/generic-table.src "/packages/dotkul/lib/generic-table"
 dotkul::set_metadata /page-elements/generic-table/entity.type parameter
 dotkul::set_metadata /page-elements/generic-table/entity.datatype metadata
-dotkul::set_metadata /page-elements/generic-table/entity.metadata_root /entities/
+dotkul::set_metadata /page-elements/generic-table/entity.metadata_root /object-types/
 dotkul::set_metadata /page-elements/generic-table/parent_id.type parameter
 dotkul::set_metadata /page-elements/generic-table/parent_id.datatype object_id
 dotkul::set_metadata /page-elements/generic-table/parent_id.object_supertype acs_object
@@ -575,7 +560,7 @@ dotkul::set_metadata /site-map/dashboard/projects/index/project-list.title "Your
 dotkul::set_metadata /site-map/dashboard/projects/index/project-list.layout_tag left
 dotkul::set_metadata /site-map/dashboard/projects/index/project-list.page-element /page-elements/generic-table
 dotkul::set_metadata /site-map/dashboard/projects/index/project-list/entity.type parameter-value 
-dotkul::set_metadata /site-map/dashboard/projects/index/project-list/entity.value /entities/project
+dotkul::set_metadata /site-map/dashboard/projects/index/project-list/entity.value /object-types/project
 dotkul::set_metadata /site-map/dashboard/projects/index/project-list/parent_id.type parameter-value 
 dotkul::set_metadata /site-map/dashboard/projects/index/project-list/parent_id.value {[ad_conn package_id]}
 
