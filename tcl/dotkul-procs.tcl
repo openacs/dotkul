@@ -473,7 +473,7 @@ dotkul::set_metadata /metadata-node-types/page-element-instance/page-element.pro
 #----------------------------------------------------------------------
 
 dotkul::set_metadata /page-elements/generic-table.type page-element
-dotkul::set_metadata /page-elements/generic-table.src "/packages/generic/lib/generic-table"
+dotkul::set_metadata /page-elements/generic-table.src "/packages/dotkul/lib/generic-table"
 dotkul::set_metadata /page-elements/generic-table/entity.type parameter
 dotkul::set_metadata /page-elements/generic-table/entity.datatype metadata
 dotkul::set_metadata /page-elements/generic-table/entity.metadata_root /entities/
@@ -484,7 +484,7 @@ dotkul::set_metadata /page-elements/generic-table/parent_id.object_supertype acs
 
 
 dotkul::set_metadata /page-elements/generic-form.type page-element
-dotkul::set_metadata /page-elements/generic-form.src "/packages/generic/lib/generic-form"
+dotkul::set_metadata /page-elements/generic-form.src "/packages/dotkul/lib/generic-form"
 dotkul::set_metadata /page-elements/generic-form/formspec.type parameter
 dotkul::set_metadata /page-elements/generic-form/formspec.datatype metadata
 dotkul::set_metadata /page-elements/generic-form/formspec.metadata_root /formspecs/
@@ -494,7 +494,7 @@ dotkul::set_metadata /page-elements/generic-form/parent_id.supertype acs_object
 
 
 dotkul::set_metadata /page-elements/generic-link.type page-element
-dotkul::set_metadata /page-elements/generic-link.src "/packages/generic/lib/generic-link"
+dotkul::set_metadata /page-elements/generic-link.src "/packages/dotkul/lib/generic-link"
 dotkul::set_metadata /page-elements/generic-link/target.type parameter
 dotkul::set_metadata /page-elements/generic-link/target.datatype metadata
 dotkul::set_metadata /page-elements/generic-link/target.metadata_root /site-map/
@@ -554,7 +554,7 @@ dotkul::set_metadata /page-elements/blog-entry/entry_id.required_p t
 
 dotkul::set_metadata /site-map/dashboard.type place
 dotkul::set_metadata /site-map/dashboard.label "Dashboard"
-dotkul::set_metadata /site-map/dashboard.master "/packages/cnet/lib/dashboard-master"
+dotkul::set_metadata /site-map/dashboard.master "/packages/dotkul/lib/dashboard-master"
 
 dotkul::set_metadata /site-map/dashboard/projects.type page-folder
 dotkul::set_metadata /site-map/dashboard/projects.label "Projects"
@@ -563,7 +563,7 @@ dotkul::set_metadata /site-map/dashboard/projects.link_title "Overview over all 
 
 dotkul::set_metadata /site-map/dashboard/projects/index.type page
 dotkul::set_metadata /site-map/dashboard/projects/index.title ""
-dotkul::set_metadata /site-map/dashboard/projects/index.layout_template "/packages/cnet/lib/dashboard-overview"
+dotkul::set_metadata /site-map/dashboard/projects/index.layout_template "/packages/dotkul/lib/dashboard-overview"
 
 dotkul::set_metadata /site-map/dashboard/projects/index/project-list.type page-element-instance
 dotkul::set_metadata /site-map/dashboard/projects/index/project-list.title "Your Projects"
@@ -602,7 +602,7 @@ dotkul::set_metadata /site-map/dashboard/blog.label "Messages"
 dotkul::set_metadata /site-map/dashboard/blog.navtype main
 
 dotkul::set_metadata /site-map/dashboard/blog/index.type page
-dotkul::set_metadata /site-map/dashboard/blog/index.layout_template "/packages/cnet/lib/dashboard-overview"
+dotkul::set_metadata /site-map/dashboard/blog/index.layout_template "/packages/dotkul/lib/dashboard-overview"
 
 dotkul::set_metadata /site-map/dashboard/blog/index/blog.type page-element-instance
 dotkul::set_metadata /site-map/dashboard/blog/index/blog.title "All Messages"
