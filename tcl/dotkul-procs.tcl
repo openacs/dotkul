@@ -40,7 +40,7 @@ ad_proc dotkul::get_property_type {
     node_type
     property
 } {
-    return [dotkul::get_metadata "/metadata-node-types/$node_type/$property.property_type"]
+    return [dotkul::get_metadata "/system/metadata/node-types/$node_type/$property.property_type"]
 }
 
 ad_proc dotkul::get_node_properties {
@@ -454,13 +454,13 @@ ad_proc -public dotkul::storage::content_item::new {
 # Node and property types
 #----------------------------------------------------------------------
 
-dotkul::set_metadata /metadata-node-types/entity.type metadata_node
-dotkul::set_metadata /metadata-node-types/entity/all_attributes.type metadata_property
-dotkul::set_metadata /metadata-node-types/entity/all_attributes.property_type metadata_reference_list
+dotkul::set_metadata /system/metadata/node-types/entity.type metadata_node
+dotkul::set_metadata /system/metadata/node-types/entity/all_attributes.type metadata_property
+dotkul::set_metadata /system/metadata/node-types/entity/all_attributes.property_type metadata_reference_list
 
-dotkul::set_metadata /metadata-node-types/page-element-instance.type metadata_node
-dotkul::set_metadata /metadata-node-types/page-element-instance/page-element.type metadata_property
-dotkul::set_metadata /metadata-node-types/page-element-instance/page-element.property_type metadata_reference
+dotkul::set_metadata /system/metadata/node-types/page-element-instance.type metadata_node
+dotkul::set_metadata /system/metadata/node-types/page-element-instance/page-element.type metadata_property
+dotkul::set_metadata /system/metadata/node-types/page-element-instance/page-element.property_type metadata_reference
 
 
 
