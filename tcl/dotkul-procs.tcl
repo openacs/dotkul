@@ -512,6 +512,11 @@ dotkul::set_metadata /page-elements/blog/package_id.type parameter
 dotkul::set_metadata /page-elements/blog/package_id.datatype object_id
 dotkul::set_metadata /page-elements/blog/package_id.supertype acs_object
 dotkul::set_metadata /page-elements/blog/package_id.required_p t
+
+dotkul::set_metadata /page-elements/blog/template.type parameter
+dotkul::set_metadata /page-elements/blog/template.datatype ats_template
+dotkul::set_metadata /page-elements/blog/template.required_p f
+
 dotkul::set_metadata /page-elements/blog/max_num_entries.type parameter
 dotkul::set_metadata /page-elements/blog/max_num_entries.datatype integer
 dotkul::set_metadata /page-elements/blog/min_num_entries.type parameter
@@ -596,6 +601,19 @@ dotkul::set_metadata /site-map/dashboard/projects/project-add/project-form/paren
 # Blogger pages
 #----------------------------------------------------------------------
 
+# HACK - I did it only so that metadata doesn't depend on database ids
+# In order to use the blogger it has to be installed and one instance of it
+# mounted at /weblogger/ That's the one we'll use.
+
+set blogger_url "/weblogger/"
+set package_key "lars-blogger"
+array set site_node_arr [site_node::get -url $blogger_url]
+set blogger_package_id $site_node_arr(package_id)
+
+if {$site_node_arr(object_type)  != "apm_package" ||
+    $site_node_arr(package_key) != $package_key} {
+      error "Can't find an instance of $package_key mounted at $blogger_url"
+}
 
 dotkul::set_metadata /site-map/dashboard/blog.type page-folder
 dotkul::set_metadata /site-map/dashboard/blog.label "Messages"
@@ -608,8 +626,13 @@ dotkul::set_metadata /site-map/dashboard/blog/index/blog.type page-element-insta
 dotkul::set_metadata /site-map/dashboard/blog/index/blog.title "All Messages"
 dotkul::set_metadata /site-map/dashboard/blog/index/blog.page-element /page-elements/blog
 dotkul::set_metadata /site-map/dashboard/blog/index/blog.layout_tag left
+dotkul::set_metadata /site-map/dashboard/blog/index/blog/template.type parameter-value
+
+# This is where you swap the template:
+dotkul::set_metadata /site-map/dashboard/blog/index/blog/template.value /packages/lars-blogger/www/blog
+
 dotkul::set_metadata /site-map/dashboard/blog/index/blog/package_id.type parameter-value 
-dotkul::set_metadata /site-map/dashboard/blog/index/blog/package_id.value 1118
+dotkul::set_metadata /site-map/dashboard/blog/index/blog/package_id.value $blogger_package_id
 dotkul::set_metadata /site-map/dashboard/blog/index/blog/comments_page.type parameter-value
 dotkul::set_metadata /site-map/dashboard/blog/index/blog/comments_page.value /site-map/dashboard/blog/comments
 
@@ -618,7 +641,7 @@ dotkul::set_metadata /site-map/dashboard/blog/index/calendar.title "Posting Hist
 dotkul::set_metadata /site-map/dashboard/blog/index/calendar.page-element /page-elements/blog-calendar
 dotkul::set_metadata /site-map/dashboard/blog/index/calendar.layout_tag right
 dotkul::set_metadata /site-map/dashboard/blog/index/calendar/package_id.type parameter-value 
-dotkul::set_metadata /site-map/dashboard/blog/index/calendar/package_id.value 1118
+dotkul::set_metadata /site-map/dashboard/blog/index/calendar/package_id.value $blogger_package_id
 
 
 dotkul::set_metadata /site-map/dashboard/blog/comments.type page
@@ -628,4 +651,3 @@ dotkul::set_metadata /site-map/dashboard/blog/comments/blog-entry.type page-elem
 dotkul::set_metadata /site-map/dashboard/blog/comments/blog-entry.page-element /page-elements/blog-entry
 dotkul::set_metadata /site-map/dashboard/blog/comments/blog-entry/entry_id.type parameter-value
 dotkul::set_metadata /site-map/dashboard/blog/comments/blog-entry/entry_id.source query
-

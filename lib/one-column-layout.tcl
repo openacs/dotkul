@@ -4,10 +4,10 @@ set place [parameter::get -parameter PlaceReference]
 set url [ad_conn extra_url]
 # Add trailing 'index', if necessary
 if { [string match "*/" "/$url"] } {
-    append url "index"
+    set page ${place}${url}index
+} else {
+    set page ${place}${url}
 }
-
-set page $place$url
 
 set title [dotkul::get_metadata $page.title]
 
